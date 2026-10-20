@@ -1,0 +1,94 @@
+{
+  "name": "RPA Assistente de Investimentos com LLM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "investments-briefing",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook Ingestion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://digitalinnovationone.github.io/dio-lab-assistente-investimentos-rpa-n8n/cotacoes.json",
+        "options": {}
+      },
+      "id": "2",
+      "name": "HTTP Request - Cotacoes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Merge Dados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cliente = $items('Webhook Ingestion')[0].json.body;\nconst cotacoes =$items('HTTP Request - Cotacoes')[0].json;\n\nconst prompt = `Analise a carteira do investidor ${cliente.nome} (${cliente.perfil}) considerando o cenário atual do mercado: ${JSON.stringify(cotacoes)}. Gere um briefing financeiro executivo e conciso com recomendações táticas.`;\n\nreturn [{\n  json: {\n    email: cliente.email,\n    promptFormatado: prompt\n  }\n}];"
+      },
+      "id": "4",
+      "name": "Code - Sanitizacao e Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Briefing Diário de Mercado - Recomendações Táticas",
+        "message": "={{ $json.promptFormatado }}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Gmail Disparo",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Ingestion": {
+      "main": [
+        [
+          { "node": "Merge Dados", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP Request - Cotacoes": {
+      "main": [
+        [
+          { "node": "Merge Dados", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Merge Dados": {
+      "main": [
+        [
+          { "node": "Code - Sanitizacao e Prompt", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Sanitizacao e Prompt": {
+      "main": [
+        [
+          { "node": "Gmail Disparo", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}
